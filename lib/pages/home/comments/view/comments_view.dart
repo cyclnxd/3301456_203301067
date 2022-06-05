@@ -109,9 +109,10 @@ class _CommentsViewState extends ConsumerState<CommentsView> {
                               datePublished: Timestamp.now(),
                               profilePic: user!.photoURL!,
                               username: user.displayName!,
+                              uid: user.uid,
                               toUser: widget.post["uid"],
                             ),
-                            widget.post.id,
+                            widget.post.reference,
                           );
                       _comment.clear();
                       setState(() {});

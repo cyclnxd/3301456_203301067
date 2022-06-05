@@ -1,3 +1,5 @@
+import 'dart:developer';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:subsocial/models/post/comment_model.dart';
 import 'package:subsocial/models/post/likes_model.dart';
@@ -20,7 +22,7 @@ abstract class IFireStoreService {
   Future<QuerySnapshot>? fetchSaveds(String uid);
   Future<QuerySnapshot>? fetchComments(String postId);
   Future<QuerySnapshot>? fetchLikes(String postId);
-  Stream<QuerySnapshot<JsonMap>>? fetchActivities(String uid);
+  Future<QuerySnapshot<JsonMap>>? fetchActivities(String uid);
 }
 
 class FirestoreService implements IFireStoreService {
@@ -32,10 +34,10 @@ class FirestoreService implements IFireStoreService {
     await _firebaseFirestore.collection("posts").doc(postId).delete();
   }
 
-  Future<void> likePost(String postId, Like like) async {
+  Future<void> likePost(DocumentReference postRef, Like like) async {
     final liked = await _firebaseFirestore
         .collection("posts")
-        .doc(postId)
+        .doc(postRef.id)
         .collection("likes")
         .doc(like.uid)
         .withConverter<Like>(
@@ -47,7 +49,7 @@ class FirestoreService implements IFireStoreService {
     if (!liked.exists) {
       _firebaseFirestore
           .collection('posts')
-          .doc(postId)
+          .doc(postRef.id)
           .collection("likes")
           .doc(like.uid)
           .withConverter<Like>(
@@ -56,10 +58,23 @@ class FirestoreService implements IFireStoreService {
             toFirestore: (like, _) => like.toJson(),
           )
           .set(like);
+      if (like.uid != like.toUser) {
+        _firebaseFirestore
+            .collection('users')
+            .doc(like.toUser)
+            .collection('activities')
+            .doc(like.uid)
+            .set({
+          "post": postRef,
+          "time": Timestamp.now(),
+          "type": "like",
+          "whoFrom": like.uid,
+        });
+      }
     } else {
       _firebaseFirestore
           .collection('posts')
-          .doc(postId)
+          .doc(postRef.id)
           .collection("likes")
           .doc(like.uid)
           .withConverter<Like>(
@@ -68,6 +83,14 @@ class FirestoreService implements IFireStoreService {
             toFirestore: (like, _) => like.toJson(),
           )
           .delete();
+      if (like.uid != like.toUser) {
+        _firebaseFirestore
+            .collection('users')
+            .doc(like.toUser)
+            .collection('activities')
+            .doc(like.uid)
+            .delete();
+      }
     }
   }
 
@@ -97,11 +120,11 @@ class FirestoreService implements IFireStoreService {
         .set(post);
   }
 
-  Future<void> addComment(Comment comment, String postId) async {
+  Future<void> addComment(Comment comment, DocumentReference postRef) async {
     String commentId = const Uuid().v1();
     _firebaseFirestore
         .collection('posts')
-        .doc(postId)
+        .doc(postRef.id)
         .collection('comments')
         .doc(commentId)
         .withConverter<Comment>(
@@ -110,6 +133,19 @@ class FirestoreService implements IFireStoreService {
           toFirestore: (comment, _) => comment.toJson(),
         )
         .set(comment);
+    if (comment.uid != comment.toUser) {
+      _firebaseFirestore
+          .collection('users')
+          .doc(comment.toUser)
+          .collection('activities')
+          .doc()
+          .set({
+        "post": postRef,
+        "time": Timestamp.now(),
+        "type": "comment",
+        "whoFrom": comment.uid,
+      });
+    }
   }
 
   @override
@@ -126,6 +162,13 @@ class FirestoreService implements IFireStoreService {
       await _firebaseFirestore.collection('users').doc(uid).update({
         'following': FieldValue.arrayRemove([followId])
       });
+
+      _firebaseFirestore
+          .collection('users')
+          .doc(followId)
+          .collection('activities')
+          .doc(uid)
+          .delete();
     } else {
       await _firebaseFirestore.collection('users').doc(followId).update({
         'followers': FieldValue.arrayUnion([uid])
@@ -133,6 +176,17 @@ class FirestoreService implements IFireStoreService {
 
       await _firebaseFirestore.collection('users').doc(uid).update({
         'following': FieldValue.arrayUnion([followId])
+      });
+
+      _firebaseFirestore
+          .collection('users')
+          .doc(followId)
+          .collection('activities')
+          .doc(uid)
+          .set({
+        "time": Timestamp.now(),
+        "type": "follow",
+        "whoFrom": uid,
       });
     }
   }
@@ -220,21 +274,20 @@ class FirestoreService implements IFireStoreService {
   }
 
   @override
-  Stream<QuerySnapshot<JsonMap>> fetchActivities(String uid) {
-    return _firebaseFirestore
-        .collectionGroup('comments')
-        .where("toUser", isEqualTo: uid)
-        .orderBy("datePublished", descending: true)
-        .snapshots();
+  Future<QuerySnapshot<JsonMap>> fetchActivities(String uid) async {
+    return await _firebaseFirestore
+        .collection('users')
+        .doc(uid)
+        .collection('activities')
+        .get();
   }
 
   @override
-  Future<QuerySnapshot>? fetchSaveds(String uid) {
-    return _firebaseFirestore
-        .collection('users')
-        .doc(uid)
-        .collection('saveds')
+  Future<QuerySnapshot>? fetchSaveds(String uid) async {
+    final _saveds = await _firebaseFirestore
+        .collectionGroup('saveds')
         .orderBy("datePublished", descending: true)
         .get();
+    return _saveds;
   }
 }

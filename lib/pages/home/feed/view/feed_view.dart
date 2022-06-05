@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
@@ -8,6 +9,7 @@ import 'package:subsocial/components/post_card.dart';
 import 'package:subsocial/extensions/image_path.dart';
 import 'package:subsocial/models/user/user_model.dart';
 import 'package:subsocial/providers/theme_provider.dart';
+import 'package:subsocial/services/navigation/navigation_service.dart';
 
 import '../../../../providers/firebase_provider.dart';
 
@@ -82,13 +84,9 @@ class _FeedViewState extends ConsumerState<FeedView> {
         actions: [
           IconButton(
             onPressed: () async {
-              ref.read(authServicesProvider).signOut();
+              NavigationService.instance.navigateToPage(path: '/chat');
             },
-            icon: const Icon(Icons.logout_outlined),
-          ),
-          IconButton(
-            onPressed: () {},
-            icon: const Icon(Icons.light_mode_outlined),
+            icon: const Icon(CupertinoIcons.chat_bubble_2),
           ),
         ],
       ),
@@ -103,7 +101,7 @@ class _FeedViewState extends ConsumerState<FeedView> {
               return ListView(
                 controller: _scrollController,
                 children: [
-                  for (final post in snap.data!.docs)
+                  for (var post in snap.data!.docs)
                     _following.contains(post["uid"])
                         ? PostCard(post: post)
                         : const SizedBox.shrink()

@@ -18,6 +18,7 @@ import '../../pages/home/likes/view/likes_view.dart';
 import '../../pages/home/profile/view/edit_profile_view.dart';
 import '../../pages/home/profile/view/posts_view.dart';
 import '../../pages/home/profile/view/profile_view.dart';
+import '../../pages/post/view/post_view.dart';
 
 abstract class INavigationService {
   Future<void> navigateToPage({required String path, Object? data}) async {}
@@ -114,6 +115,12 @@ class NavigationService implements INavigationService {
       case NavigationConstants.SAVEDS_VIEW:
         return normalNavigate(
           const SavedsView(),
+          args,
+        );
+
+      case NavigationConstants.POST_VIEW:
+        return normalNavigate(
+          PostView(post: args.arguments as dynamic),
           args,
         );
 

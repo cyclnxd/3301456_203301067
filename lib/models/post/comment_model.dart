@@ -8,6 +8,7 @@ class Comment {
   final String profilePic;
   final String username;
   final String toUser;
+  final String uid;
   final Timestamp datePublished;
 
   Comment({
@@ -16,6 +17,7 @@ class Comment {
     required this.profilePic,
     required this.username,
     required this.toUser,
+    required this.uid,
     required this.datePublished,
   });
 
@@ -27,13 +29,15 @@ class Comment {
         profilePic = snapshot["profilePic"],
         username = snapshot["username"],
         toUser = snapshot["toUser"],
-        datePublished = snapshot["datePublished"];
+        datePublished = snapshot["datePublished"],
+        uid = snapshot["uid"];
 
   JsonMap toJson() => {
         "content": content,
         "profilePic": profilePic,
         "username": username,
         "toUser": toUser,
+        "uid": uid,
         "datePublished": datePublished,
       };
 }

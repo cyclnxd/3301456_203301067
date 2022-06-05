@@ -34,14 +34,15 @@ class _PostCardState extends ConsumerState<PostCard> {
   Widget build(BuildContext context) {
     final _user = ref.watch(authServicesProvider).getCurrentUser;
 
-    void postLike() async {
+    void postLike(String uid) async {
       await ref.read(firestoreServicesProvider).likePost(
-            widget.post.reference.id,
+            widget.post.reference,
             Like(
               uid: _user!.uid,
               username: _user.displayName!,
               datePublished: Timestamp.now(),
               profilePic: _user.photoURL!,
+              toUser: uid,
             ),
           );
     }
@@ -124,7 +125,7 @@ class _PostCardState extends ConsumerState<PostCard> {
                       isLikeAnimating = true;
                     });
                     if (!liked) {
-                      postLike();
+                      postLike(widget.post["uid"]);
                     }
                   },
                   child: Stack(
@@ -178,7 +179,7 @@ class _PostCardState extends ConsumerState<PostCard> {
                     IconButton(
                       iconSize: _iconSize,
                       onPressed: () async {
-                        postLike();
+                        postLike(widget.post["uid"]);
                         setState(() {});
                       },
                       color: _randomColor,
