@@ -23,7 +23,7 @@ Subsocial is a social media app.
 - [flutter_hooks](https://pub.dev/packages/flutter_hooks) - A flutter implementation of React hooks. It adds a new kind of widget with enhanced code reuse.
 - [hooks_riverpod](https://pub.dev/packages/flutter_hooks) - A simple way to access state from anywhere in your application while robust and testable.
 
-###UI
+### UI
 - [flutter_svg](https://pub.dev/packages/flutter_svg) - Draw SVG (and some Android VectorDrawable (XML)) files on a Flutter Widget.
 - [google_fonts](https://pub.dev/packages/google_fonts) - The google_fonts package for Flutter allows you to easily use any of the thousands of fonts available from fonts.google.com in your Flutter app.
 - [flutter_native_splash](https://pub.dev/packages/flutter_native_splash) - Customize Flutter's default white native splash screen with background color and splash image. Supports dark mode, full screen, and more.
