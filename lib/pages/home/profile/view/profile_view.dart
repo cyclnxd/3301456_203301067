@@ -7,6 +7,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:subsocial/constants/paddings.dart';
 import 'package:subsocial/constants/project_colors.dart';
+import 'package:subsocial/models/post/post_model.dart';
+import 'package:subsocial/models/user/user_model.dart';
 
 import 'package:subsocial/providers/firebase_provider.dart';
 import 'package:subsocial/providers/theme_provider.dart';
@@ -33,30 +35,30 @@ class _ProfileViewState extends ConsumerState<ProfileView> {
             : _currentUser.uid
         : _currentUser!.uid;
 
-    final Future<QuerySnapshot>? _userFuture =
+    final Future<QuerySnapshot<UserModel>>? _userFuture =
         ref.watch(firestoreServicesProvider).fetchUserWithId(_userUid);
-    final Future<QuerySnapshot>? _postFuture =
+    final Future<QuerySnapshot<Post>>? _postFuture =
         ref.watch(firestoreServicesProvider).fetchPostWithId(_userUid);
 
-    return FutureBuilder<QuerySnapshot>(
+    return FutureBuilder<QuerySnapshot<UserModel>>(
       future: _userFuture,
-      builder: (_, snap) {
-        if (snap.hasData) {
-          var _user = snap.data!.docs.first;
-          int followers = _user['followers'].length;
-          int following = _user['following'].length;
+      builder: (_, AsyncSnapshot<QuerySnapshot<UserModel>> snapUser) {
+        if (snapUser.hasData) {
+          var _user = snapUser.data!.docs.first.data();
+          int followers = _user.followers.length;
+          int following = _user.following.length;
           return Scaffold(
             appBar: _buildAppBar(_user, _uid, _currentUser),
-            body: FutureBuilder<QuerySnapshot>(
+            body: FutureBuilder<QuerySnapshot<Post>>(
               future: _postFuture,
-              builder: (_, snap) {
-                if (!snap.hasData) {
+              builder: (_, AsyncSnapshot<QuerySnapshot<Post>> snapPost) {
+                if (!snapPost.hasData) {
                   return const Center(
                     child: CircularProgressIndicator(),
                   );
                 }
-                var _posts = snap.data!.docs;
-                var isFollowing = _user['followers'].contains(_currentUser.uid);
+                var _posts = snapPost.data!.docs;
+                var isFollowing = _user.followers.contains(_currentUser.uid);
                 return ListView(
                   children: [
                     Padding(
@@ -94,7 +96,29 @@ class _ProfileViewState extends ConsumerState<ProfileView> {
                                                           .spaceEvenly,
                                                   children: [
                                                     ElevatedButton(
-                                                      onPressed: () {},
+                                                      onPressed: () async {
+                                                        var conversation = await ref
+                                                            .read(
+                                                                firestoreServicesProvider)
+                                                            .createConversation(
+                                                              _currentUser.uid,
+                                                              _user.id,
+                                                            );
+
+                                                        NavigationService
+                                                            .instance
+                                                            .navigateToPage(
+                                                          path: '/chat',
+                                                          data: {
+                                                            'conversation':
+                                                                conversation,
+                                                            'user': snapUser
+                                                                .data!
+                                                                .docs
+                                                                .first,
+                                                          },
+                                                        );
+                                                      },
                                                       child:
                                                           const Text("Message"),
                                                     ),
@@ -149,8 +173,7 @@ class _ProfileViewState extends ConsumerState<ProfileView> {
                                                                     .followUser(
                                                                       _currentUser
                                                                           .uid,
-                                                                      _user[
-                                                                          'id'],
+                                                                      _user.id,
                                                                     );
 
                                                                 setState(() {
@@ -187,7 +210,7 @@ class _ProfileViewState extends ConsumerState<ProfileView> {
                               top: 15,
                             ),
                             child: Text(
-                              '${_user['name']} ${_user['surname']}',
+                              '${_user.name} ${_user.surname}',
                               style: const TextStyle(
                                 fontWeight: FontWeight.bold,
                               ),
@@ -199,15 +222,15 @@ class _ProfileViewState extends ConsumerState<ProfileView> {
                               top: 1,
                             ),
                             child: Text(
-                              _user['bio'],
+                              _user.bio,
                             ),
                           ),
                         ],
                       ),
                     ),
                     const Divider(thickness: 1),
-                    snap.data!.docs.isNotEmpty
-                        ? buildPosts(snap, _posts)
+                    snapPost.data!.docs.isNotEmpty
+                        ? buildPosts(snapPost, _posts)
                         : Padding(
                             padding: ProjectPaddings.vMediumPadding,
                             child: Center(
@@ -230,11 +253,10 @@ class _ProfileViewState extends ConsumerState<ProfileView> {
     );
   }
 
-  AppBar _buildAppBar(
-      QueryDocumentSnapshot<Object?> _user, String? _uid, User _currentUser) {
+  AppBar _buildAppBar(UserModel _user, String? _uid, User _currentUser) {
     return AppBar(
       centerTitle: false,
-      title: Text(_user["username"] ?? ""),
+      title: Text(_user.username),
       actions: [
         _uid != null && _uid != _currentUser.uid
             ? const SizedBox.shrink()
@@ -248,18 +270,18 @@ class _ProfileViewState extends ConsumerState<ProfileView> {
     );
   }
 
-  CircleAvatar profileImage(QueryDocumentSnapshot<Object?> _user) {
+  CircleAvatar profileImage(UserModel _user) {
     return CircleAvatar(
       backgroundColor: Colors.grey,
       backgroundImage: NetworkImage(
-        _user['profImage'],
+        _user.profImage,
       ),
       radius: 40,
     );
   }
 
   Padding buildPosts(
-    AsyncSnapshot<QuerySnapshot> snap,
+    AsyncSnapshot<QuerySnapshot<Post>> snap,
     List<QueryDocumentSnapshot> _posts,
   ) {
     return Padding(
@@ -280,10 +302,11 @@ class _ProfileViewState extends ConsumerState<ProfileView> {
             onTap: () {
               NavigationService.instance.navigateToPage(
                 path: '/posts',
-                data: [
-                  _posts,
-                  index,
-                ],
+                data: {
+                  'posts': _posts,
+                  'title': "Posts",
+                  'index': index,
+                },
               );
             },
             child: CachedNetworkImage(
@@ -307,7 +330,7 @@ class _ProfileViewState extends ConsumerState<ProfileView> {
       builder: (BuildContext context) {
         return SafeArea(
           child: SizedBox(
-            height: 180,
+            height: 218,
             child: Padding(
               padding: const EdgeInsets.only(top: 10.0),
               child: Column(
@@ -338,6 +361,15 @@ class _ProfileViewState extends ConsumerState<ProfileView> {
                     },
                     iconData: Icons.wb_sunny,
                     title: "Change Theme",
+                  ),
+                  _ModalMenuButton(
+                    onPressed: () {
+                      Navigator.pop(context);
+                      NavigationService.instance
+                          .navigateToPage(path: '/user-usage');
+                    },
+                    iconData: Icons.data_usage_rounded,
+                    title: "Usage Time in App",
                   ),
                   _ModalMenuButton(
                     onPressed: () {
