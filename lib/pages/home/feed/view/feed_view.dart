@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
@@ -23,6 +24,7 @@ class FeedView extends ConsumerStatefulWidget {
 class _FeedViewState extends ConsumerState<FeedView> {
   late final Future<QuerySnapshot<Post>>? _future;
   late final ScrollController _scrollController;
+  late final User? _currentUser;
   final List _following = [];
 
   @override
@@ -33,7 +35,7 @@ class _FeedViewState extends ConsumerState<FeedView> {
 
   @override
   void didChangeDependencies() {
-    final _currentUser = ref.watch(authServicesProvider).getCurrentUser;
+    _currentUser = ref.watch(authServicesProvider).getCurrentUser;
     ref
         .watch(firestoreServicesProvider)
         .fetchUserWithId(_currentUser!.uid)
@@ -104,7 +106,8 @@ class _FeedViewState extends ConsumerState<FeedView> {
                 itemBuilder: (_, index) {
                   var _post = snap.data!.docs[index].data();
 
-                  return _following.contains(_post.uid)
+                  return _following.contains(_post.uid) ||
+                          _post.uid == _currentUser!.uid
                       ? PostCard(
                           post: snap.data!.docs[index],
                           index: index,
