@@ -1,24 +1,29 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
-import 'package:subsocial/pages/home/discovery/feed/discovery_feed_view.dart';
-import 'package:subsocial/pages/home/profile/view/saveds_view.dart';
+import 'package:subsocial/models/chat/conversation_model.dart';
+import 'package:subsocial/models/user/user_model.dart';
+import 'package:subsocial/pages/home/activity/view/activity_post_view.dart';
 
 import '../../components/not_found_widget.dart';
 import '../../constants/navigation.dart';
+import '../../models/post/post_model.dart';
 import '../../pages/authentication/login/view/login_view.dart';
 import '../../pages/authentication/account/view/account_info.dart';
 import '../../pages/authentication/register/view/register_view.dart';
 import '../../pages/home/activity/view/activity_view.dart';
 import '../../pages/home/addpost/view/add_post_view.dart';
+import '../../pages/home/chat/view/chat_list_view.dart';
+import '../../pages/home/chat/view/chat_view.dart';
 import '../../pages/home/comments/view/comments_view.dart';
 import '../../pages/home/discovery/view/discovery_view.dart';
 import '../../pages/home/discovery/view/search_view.dart';
 import '../../pages/home/home_view.dart';
 import '../../pages/home/likes/view/likes_view.dart';
-import '../../pages/home/profile/view/edit_profile_view.dart';
-import '../../pages/home/profile/view/posts_view.dart';
+import '../../pages/home/profile/editprofile/edit_profile_view.dart';
+import '../../pages/home/profile/saveds/saveds_view.dart';
+import '../../pages/home/profile/userusage/user_usage_view.dart';
 import '../../pages/home/profile/view/profile_view.dart';
-import '../../pages/post/view/post_view.dart';
+import '../../pages/post/posts_view.dart';
 
 abstract class INavigationService {
   Future<void> navigateToPage({required String path, Object? data}) async {}
@@ -88,7 +93,22 @@ class NavigationService implements INavigationService {
         );
       case NavigationConstants.COMMENTS_VIEW:
         return normalNavigate(
-          CommentsView(post: args.arguments as QueryDocumentSnapshot),
+          CommentsView(post: args.arguments as QueryDocumentSnapshot<Post>),
+          args,
+        );
+      case NavigationConstants.CHAT_VIEW:
+        return normalNavigate(
+          ChatView(
+            conversation: (args.arguments as Map)['conversation']
+                as QueryDocumentSnapshot<Conversation>,
+            user: (args.arguments as Map)['user']
+                as QueryDocumentSnapshot<UserModel>,
+          ),
+          args,
+        );
+      case NavigationConstants.ACTIVITY_POST_VIEW:
+        return normalNavigate(
+          ActivityPostView(post: args.arguments as DocumentSnapshot<Post>),
           args,
         );
       case NavigationConstants.LIKES_VIEW:
@@ -98,17 +118,16 @@ class NavigationService implements INavigationService {
         );
       case NavigationConstants.POSTS_VIEW:
         return normalNavigate(
-          PostsView(postWithIndex: args.arguments as List),
+          PostsView(
+            posts: (args.arguments as Map)['posts'],
+            title: (args.arguments as Map)['title'],
+            index: (args.arguments as Map)['index'],
+          ),
           args,
         );
       case NavigationConstants.EDIT_PROFILE_VIEW:
         return normalNavigate(
           const EditProfileView(),
-          args,
-        );
-      case NavigationConstants.DISCOVERY_POSTS_VIEW:
-        return normalNavigate(
-          DiscoveryPostsView(postWithIndex: args.arguments as List),
           args,
         );
 
@@ -117,10 +136,14 @@ class NavigationService implements INavigationService {
           const SavedsView(),
           args,
         );
-
-      case NavigationConstants.POST_VIEW:
+      case NavigationConstants.CHAT_LIST_VIEW:
         return normalNavigate(
-          PostView(post: args.arguments as dynamic),
+          const ChatListView(),
+          args,
+        );
+      case NavigationConstants.USER_USAGE_VIEW:
+        return normalNavigate(
+          const UserUsageView(),
           args,
         );
 
