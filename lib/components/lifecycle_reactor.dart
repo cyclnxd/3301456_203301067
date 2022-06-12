@@ -1,5 +1,3 @@
-import 'dart:developer';
-
 import 'package:flutter/material.dart';
 import 'package:subsocial/main.dart';
 import 'package:subsocial/pages/layout/view/layout_view.dart';

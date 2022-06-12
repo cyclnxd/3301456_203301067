@@ -1,5 +1,3 @@
-import 'dart:developer';
-
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -69,39 +67,51 @@ class _ActivityCardState extends ConsumerState<ActivityCard> {
         builder: (_, snapshot) {
           if (snapshot.hasData) {
             Post? _post = snapshot.data?.data() as Post;
-            return ListTile(
-              leading: GestureDetector(
-                onTap: () {
-                  NavigationService.instance.navigateToPage(
-                    path: "/profile",
-                    data: _post.uid,
-                  );
-                },
-                child: CircleAvatar(
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(50),
-                    child: Image.network(
-                      _post.profImage,
+            return FutureBuilder<QuerySnapshot<UserModel>>(
+              future: ref
+                  .watch(firestoreServicesProvider)
+                  .fetchUserWithId(_activities.whoFrom),
+              builder: (_, userSnap) {
+                if (userSnap.hasData) {
+                  UserModel _user = userSnap.data!.docs.first.data();
+                  return ListTile(
+                    leading: GestureDetector(
+                      onTap: () {
+                        NavigationService.instance.navigateToPage(
+                          path: "/profile",
+                          data: _post.uid,
+                        );
+                      },
+                      child: CircleAvatar(
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(50),
+                          child: Image.network(
+                            _user.profImage,
+                          ),
+                        ),
+                      ),
                     ),
-                  ),
-                ),
-              ),
-              trailing: GestureDetector(
-                onTap: () {
-                  NavigationService.instance.navigateToPage(
-                    path: '/activity-post',
-                    data: snapshot.data,
+                    trailing: GestureDetector(
+                      onTap: () {
+                        NavigationService.instance.navigateToPage(
+                          path: '/activity-post',
+                          data: snapshot.data,
+                        );
+                      },
+                      child: Image.network(
+                        _post.postUrl,
+                      ),
+                    ),
+                    title: Text(_user.username),
+                    subtitle: Text(
+                      _activityText,
+                      style: Theme.of(context).textTheme.labelMedium,
+                    ),
                   );
-                },
-                child: Image.network(
-                  _post.postUrl,
-                ),
-              ),
-              title: Text(_post.username),
-              subtitle: Text(
-                _activityText,
-                style: Theme.of(context).textTheme.labelMedium,
-              ),
+                } else {
+                  return const SizedBox.shrink();
+                }
+              },
             );
           } else {
             return const SizedBox.shrink();
