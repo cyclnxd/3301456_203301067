@@ -1,6 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
-typedef JsonMap = Map<String, dynamic>;
+import '../../constants/type_def.dart';
 
 class UserModel {
   final String id;

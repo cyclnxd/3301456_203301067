@@ -7,17 +7,21 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lottie/lottie.dart';
 import 'package:subsocial/extensions/image_path.dart';
+import 'package:subsocial/models/post/post_model.dart';
 import 'package:subsocial/providers/firebase_provider.dart';
 import 'package:subsocial/services/navigation/navigation_service.dart';
 
 import '../constants/paddings.dart';
 import '../models/post/likes_model.dart';
+import '../models/post/saveds_model.dart';
 import 'like_animation.dart';
 
 class PostCard extends ConsumerStatefulWidget {
-  const PostCard({Key? key, required this.post}) : super(key: key);
+  const PostCard({Key? key, required this.post, required this.index})
+      : super(key: key);
 
-  final QueryDocumentSnapshot post;
+  final QueryDocumentSnapshot<Post> post;
+  final int index;
 
   @override
   ConsumerState<ConsumerStatefulWidget> createState() => _PostCardState();
@@ -27,8 +31,27 @@ class _PostCardState extends ConsumerState<PostCard> {
   final _iconSize = 30.0;
   final Color _randomColor =
       Colors.primaries[Random().nextInt(Colors.primaries.length)];
+  late Post _post;
 
   bool isLikeAnimating = false;
+  bool _isSaved = false;
+  bool liked = false;
+
+  @override
+  void didUpdateWidget(covariant PostCard oldWidget) {
+    if (oldWidget.post.data() != widget.post.data()) {
+      setState(() {
+        _post = widget.post.data();
+      });
+    }
+    super.didUpdateWidget(oldWidget);
+  }
+
+  @override
+  void initState() {
+    _post = widget.post.data();
+    super.initState();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -47,11 +70,11 @@ class _PostCardState extends ConsumerState<PostCard> {
           );
     }
 
-    return FutureBuilder<QuerySnapshot>(
+    return FutureBuilder<QuerySnapshot<Like>>(
       future: ref
           .watch(firestoreServicesProvider)
           .fetchLikes(widget.post.reference.id),
-      builder: (_, snap) {
+      builder: (_, AsyncSnapshot<QuerySnapshot<Like>> snap) {
         if (!snap.hasData) {
           return Center(
             child: SizedBox(
@@ -65,16 +88,9 @@ class _PostCardState extends ConsumerState<PostCard> {
             ),
           );
         } else {
-          var likes = snap.data!.docs;
-          var liked = false;
-          for (var e in likes) {
-            if (e.id == _user!.uid) {
-              liked = true;
-              break;
-            } else {
-              liked = false;
-            }
-          }
+          Iterable<String?> _likes = [];
+          _likes = snap.data!.docs.map((e) => e.data().uid);
+          liked = _likes.contains(_user!.uid);
           return Padding(
             padding: MediaQuery.of(context).size.width > 600
                 ? EdgeInsets.symmetric(
@@ -87,7 +103,7 @@ class _PostCardState extends ConsumerState<PostCard> {
                   onTap: () {
                     NavigationService.instance.navigateToPage(
                       path: "/profile",
-                      data: widget.post["uid"],
+                      data: _post.uid,
                     );
                   },
                   child: ListTile(
@@ -95,16 +111,16 @@ class _PostCardState extends ConsumerState<PostCard> {
                       child: ClipRRect(
                         borderRadius: BorderRadius.circular(100),
                         child: Image.network(
-                          widget.post["profImage"],
+                          _post.profImage,
                         ),
                       ),
                     ),
                     title: Text(
-                      widget.post["username"],
+                      _post.username,
                     ),
                   ),
                 ),
-                widget.post["location"].toString().isNotEmpty
+                _post.location.isNotEmpty
                     ? Padding(
                         padding: ProjectPaddings.gSmallPadding +
                             ProjectPaddings.hSmallPadding * 2.0,
@@ -112,7 +128,7 @@ class _PostCardState extends ConsumerState<PostCard> {
                           mainAxisAlignment: MainAxisAlignment.start,
                           children: [
                             Text(
-                              widget.post["location"],
+                              _post.location,
                               style: Theme.of(context).textTheme.labelSmall,
                             ),
                           ],
@@ -125,7 +141,7 @@ class _PostCardState extends ConsumerState<PostCard> {
                       isLikeAnimating = true;
                     });
                     if (!liked) {
-                      postLike(widget.post["uid"]);
+                      postLike(_post.uid);
                     }
                   },
                   child: Stack(
@@ -136,7 +152,7 @@ class _PostCardState extends ConsumerState<PostCard> {
                         child: CachedNetworkImage(
                           height: MediaQuery.of(context).size.height * 0.5,
                           fit: BoxFit.fill,
-                          imageUrl: widget.post['postUrl'],
+                          imageUrl: _post.postUrl,
                           placeholder: (_, __) => SizedBox(
                             height: MediaQuery.of(context).size.height * 0.5,
                             child: Center(
@@ -178,9 +194,11 @@ class _PostCardState extends ConsumerState<PostCard> {
                   children: [
                     IconButton(
                       iconSize: _iconSize,
-                      onPressed: () async {
-                        postLike(widget.post["uid"]);
-                        setState(() {});
+                      onPressed: () {
+                        setState(() {
+                          liked = !liked;
+                        });
+                        postLike(_post.uid);
                       },
                       color: _randomColor,
                       icon: liked
@@ -206,10 +224,42 @@ class _PostCardState extends ConsumerState<PostCard> {
                       flex: 1,
                       child: Container(
                         alignment: Alignment.centerRight,
-                        child: IconButton(
-                          iconSize: _iconSize,
-                          onPressed: () {},
-                          icon: const Icon(CupertinoIcons.bookmark),
+                        child: FutureBuilder<QuerySnapshot<Saveds>>(
+                          future: ref
+                              .watch(firestoreServicesProvider)
+                              .fetchSaveds(_user.uid),
+                          builder: (
+                            _,
+                            AsyncSnapshot<QuerySnapshot<Saveds>> savedsnap,
+                          ) {
+                            if (savedsnap.hasData) {
+                              Iterable _refs = [];
+                              _refs = savedsnap.data!.docs
+                                  .map((e) => e.data().post.id);
+                              _isSaved =
+                                  _refs.contains(widget.post.reference.id);
+
+                              return IconButton(
+                                iconSize: _iconSize,
+                                onPressed: () {
+                                  ref.read(firestoreServicesProvider).savePost(
+                                        widget.post.reference,
+                                        _user.uid,
+                                      );
+                                  setState(() {});
+                                },
+                                icon: _isSaved
+                                    ? const Icon(CupertinoIcons.bookmark_fill)
+                                    : const Icon(CupertinoIcons.bookmark),
+                              );
+                            } else {
+                              return IconButton(
+                                iconSize: _iconSize,
+                                onPressed: () {},
+                                icon: const Icon(CupertinoIcons.bookmark),
+                              );
+                            }
+                          },
                         ),
                       ),
                     ),
@@ -244,11 +294,11 @@ class _PostCardState extends ConsumerState<PostCard> {
                         onTap: () {
                           NavigationService.instance.navigateToPage(
                             path: '/profile',
-                            data: widget.post["uid"],
+                            data: _post.uid,
                           );
                         },
                         child: Text(
-                          "${widget.post["username"]}",
+                          _post.username,
                           style: const TextStyle(
                             fontWeight: FontWeight.w900,
                           ),
@@ -265,7 +315,7 @@ class _PostCardState extends ConsumerState<PostCard> {
                           child: Padding(
                             padding: ProjectPaddings.hSmallPadding,
                             child: Text(
-                              "${widget.post["description"]}",
+                              _post.description,
                               style: const TextStyle(),
                             ),
                           ),

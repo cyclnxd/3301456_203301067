@@ -199,6 +199,10 @@ class AddPostView extends HookConsumerWidget {
                         User? user =
                             ref.read(authServicesProvider).getCurrentUser;
                         ref.watch(isLoadingProvider.notifier).changeIsLoading();
+                        var _locationName =
+                            _locationController.text.split(',')[1];
+                        var _locationPos =
+                            _locationController.text.split(',').last;
                         final resp =
                             await ref.read(storageServicesProvider).uploadImage(
                                   path: "posts",
@@ -216,8 +220,7 @@ class AddPostView extends HookConsumerWidget {
                                 username: user.displayName!,
                                 postUrl: resp,
                                 profImage: user.photoURL!,
-                                location:
-                                    '${_locationController.text.split(',')[1]}, ${_locationController.text.split(',').last}',
+                                location: '$_locationName, $_locationPos',
                               ),
                             );
                         NavigationService.instance

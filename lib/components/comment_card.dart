@@ -1,22 +1,24 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:subsocial/constants/paddings.dart';
+import 'package:subsocial/models/post/comment_model.dart';
 
 import '../utils/utils.dart';
 
 class CommentCard extends StatelessWidget {
   const CommentCard({Key? key, required this.snap}) : super(key: key);
-  final QueryDocumentSnapshot snap;
+  final QueryDocumentSnapshot<Comment> snap;
 
   @override
   Widget build(BuildContext context) {
+    Comment _comment = snap.data();
     return Container(
       padding: ProjectPaddings.gMediumPadding,
       child: Row(
         children: [
           CircleAvatar(
             backgroundImage: NetworkImage(
-              snap['profilePic'],
+              _comment.profilePic,
             ),
             radius: 18,
           ),
@@ -30,13 +32,13 @@ class CommentCard extends StatelessWidget {
                   Row(
                     children: [
                       Text(
-                        snap['username'],
+                        _comment.username,
                         style: const TextStyle(
                           fontWeight: FontWeight.bold,
                         ),
                       ),
                       Text(
-                        ' ${snap['content']}',
+                        ' ${_comment.content}',
                         style: Theme.of(context).textTheme.labelLarge,
                       ),
                     ],
@@ -45,8 +47,9 @@ class CommentCard extends StatelessWidget {
                     padding: const EdgeInsets.only(top: 4),
                     child: Text(
                       datePicker(
-                          start: snap['datePublished'].toDate(),
-                          end: DateTime.now()),
+                        start: _comment.datePublished.toDate(),
+                        end: DateTime.now(),
+                      ),
                       style: Theme.of(context).textTheme.labelMedium,
                     ),
                   )

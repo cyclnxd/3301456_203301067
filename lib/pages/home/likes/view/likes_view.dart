@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:subsocial/providers/firebase_provider.dart';
 
+import '../../../../models/post/likes_model.dart';
 import '../../../../services/navigation/navigation_service.dart';
 
 class LikesView extends ConsumerStatefulWidget {
@@ -15,7 +16,7 @@ class LikesView extends ConsumerStatefulWidget {
 }
 
 class _LikesViewState extends ConsumerState<LikesView> {
-  late final Future<QuerySnapshot>? _future;
+  late final Future<QuerySnapshot<Like>>? _future;
 
   @override
   void initState() {
@@ -32,9 +33,9 @@ class _LikesViewState extends ConsumerState<LikesView> {
         ),
         centerTitle: false,
       ),
-      body: FutureBuilder<QuerySnapshot>(
+      body: FutureBuilder<QuerySnapshot<Like>>(
         future: _future,
-        builder: (_, snapshot) {
+        builder: (_, AsyncSnapshot<QuerySnapshot<Like>> snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(
               child: CircularProgressIndicator(),
@@ -42,31 +43,32 @@ class _LikesViewState extends ConsumerState<LikesView> {
           }
 
           return ListView.builder(
-              itemCount: snapshot.data!.docs.length,
-              itemBuilder: (_, index) {
-                var user = snapshot.data!.docs[index];
-                return GestureDetector(
-                  onTap: () {
-                    NavigationService.instance.navigateToPage(
-                      path: "/profile",
-                      data: user["uid"],
-                    );
-                  },
-                  child: ListTile(
-                    leading: CircleAvatar(
-                      child: ClipRRect(
-                        borderRadius: BorderRadius.circular(50),
-                        child: Image.network(
-                          user["profilePic"],
-                        ),
+            itemCount: snapshot.data!.docs.length,
+            itemBuilder: (_, index) {
+              var _user = snapshot.data!.docs[index].data();
+              return GestureDetector(
+                onTap: () {
+                  NavigationService.instance.navigateToPage(
+                    path: "/profile",
+                    data: _user.uid,
+                  );
+                },
+                child: ListTile(
+                  leading: CircleAvatar(
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(50),
+                      child: Image.network(
+                        _user.profilePic,
                       ),
                     ),
-                    title: Text(
-                      user["username"],
-                    ),
                   ),
-                );
-              });
+                  title: Text(
+                    _user.username,
+                  ),
+                ),
+              );
+            },
+          );
         },
       ),
     );

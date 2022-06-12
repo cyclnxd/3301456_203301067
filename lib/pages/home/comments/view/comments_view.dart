@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:subsocial/components/custom_text_field.dart';
 import 'package:subsocial/constants/paddings.dart';
 import 'package:subsocial/extensions/image_path.dart';
+import 'package:subsocial/models/post/post_model.dart';
 import 'package:subsocial/providers/firebase_provider.dart';
 import 'package:subsocial/utils/utils.dart';
 
@@ -15,7 +16,7 @@ import '../../../../models/post/comment_model.dart';
 class CommentsView extends ConsumerStatefulWidget {
   const CommentsView({Key? key, required this.post}) : super(key: key);
 
-  final QueryDocumentSnapshot post;
+  final QueryDocumentSnapshot<Post> post;
 
   @override
   ConsumerState<ConsumerStatefulWidget> createState() => _CommentsViewState();
@@ -23,14 +24,28 @@ class CommentsView extends ConsumerStatefulWidget {
 
 class _CommentsViewState extends ConsumerState<CommentsView> {
   late final TextEditingController _comment;
-  late final GlobalKey<FormState> _key;
-  late final Future<QuerySnapshot>? _future;
+  late final GlobalKey<FormState> _key = GlobalKey<FormState>();
+  late final Post _post;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+  }
+
+  @override
+  void didUpdateWidget(covariant CommentsView oldWidget) {
+    if (oldWidget.post.data() != widget.post.data()) {
+      setState(() {
+        _post = widget.post.data();
+      });
+    }
+    super.didUpdateWidget(oldWidget);
+  }
 
   @override
   void initState() {
-    _key = GlobalKey<FormState>();
+    _post = widget.post.data();
     _comment = TextEditingController();
-    _future = ref.read(firestoreServicesProvider).fetchComments(widget.post.id);
     super.initState();
   }
 
@@ -51,21 +66,27 @@ class _CommentsViewState extends ConsumerState<CommentsView> {
         ),
         centerTitle: false,
       ),
-      body: FutureBuilder<QuerySnapshot>(
-        future: _future,
-        builder: (_, snapshot) {
+      body: FutureBuilder<QuerySnapshot<Comment>>(
+        future:
+            ref.read(firestoreServicesProvider).fetchComments(widget.post.id),
+        builder: (_, AsyncSnapshot<QuerySnapshot<Comment>> snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(
               child: CircularProgressIndicator(),
             );
           }
-
-          return ListView.builder(
-            itemCount: snapshot.data!.docs.length,
-            itemBuilder: (_, index) => CommentCard(
-              snap: snapshot.data!.docs[index],
-            ),
-          );
+          if (snapshot.data!.docs.isNotEmpty) {
+            return ListView.builder(
+              itemCount: snapshot.data!.docs.length,
+              itemBuilder: (_, index) => CommentCard(
+                snap: snapshot.data!.docs[index],
+              ),
+            );
+          } else {
+            return const Center(
+              child: Text("No one comment"),
+            );
+          }
         },
       ),
       bottomNavigationBar: SafeArea(
@@ -110,7 +131,7 @@ class _CommentsViewState extends ConsumerState<CommentsView> {
                               profilePic: user!.photoURL!,
                               username: user.displayName!,
                               uid: user.uid,
-                              toUser: widget.post["uid"],
+                              toUser: _post.uid,
                             ),
                             widget.post.reference,
                           );

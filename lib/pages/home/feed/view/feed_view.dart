@@ -7,7 +7,7 @@ import 'package:subsocial/components/loading.dart';
 import 'package:subsocial/components/not_found_widget.dart';
 import 'package:subsocial/components/post_card.dart';
 import 'package:subsocial/extensions/image_path.dart';
-import 'package:subsocial/models/user/user_model.dart';
+import 'package:subsocial/models/post/post_model.dart';
 import 'package:subsocial/providers/theme_provider.dart';
 import 'package:subsocial/services/navigation/navigation_service.dart';
 
@@ -21,7 +21,7 @@ class FeedView extends ConsumerStatefulWidget {
 }
 
 class _FeedViewState extends ConsumerState<FeedView> {
-  late final Future<QuerySnapshot>? _future;
+  late final Future<QuerySnapshot<Post>>? _future;
   late final ScrollController _scrollController;
   final List _following = [];
 
@@ -39,7 +39,7 @@ class _FeedViewState extends ConsumerState<FeedView> {
         .fetchUserWithId(_currentUser!.uid)
         .then(
       (value) {
-        _following.addAll((value.docs.first.data() as UserModel).following);
+        _following.addAll((value.docs.first.data()).following);
         _following.remove(0);
       },
     );
@@ -84,7 +84,7 @@ class _FeedViewState extends ConsumerState<FeedView> {
         actions: [
           IconButton(
             onPressed: () async {
-              NavigationService.instance.navigateToPage(path: '/chat');
+              NavigationService.instance.navigateToPage(path: '/chat-list');
             },
             icon: const Icon(CupertinoIcons.chat_bubble_2),
           ),
@@ -94,18 +94,23 @@ class _FeedViewState extends ConsumerState<FeedView> {
         onRefresh: () async {
           setState(() {});
         },
-        child: FutureBuilder<QuerySnapshot>(
+        child: FutureBuilder<QuerySnapshot<Post>>(
           future: _future,
           builder: (_, snap) {
             if (snap.hasData) {
-              return ListView(
+              return ListView.builder(
+                itemCount: snap.data!.docs.length,
                 controller: _scrollController,
-                children: [
-                  for (var post in snap.data!.docs)
-                    _following.contains(post["uid"])
-                        ? PostCard(post: post)
-                        : const SizedBox.shrink()
-                ],
+                itemBuilder: (_, index) {
+                  var _post = snap.data!.docs[index].data();
+
+                  return _following.contains(_post.uid)
+                      ? PostCard(
+                          post: snap.data!.docs[index],
+                          index: index,
+                        )
+                      : const SizedBox.shrink();
+                },
               );
             } else if (snap.connectionState == ConnectionState.waiting) {
               return const Loading();

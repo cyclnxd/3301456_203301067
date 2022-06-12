@@ -2,6 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../models/user/user_model.dart';
 import '../../../../providers/firebase_provider.dart';
 import '../../../../services/navigation/navigation_service.dart';
 
@@ -13,7 +14,7 @@ class SearchView extends ConsumerStatefulWidget {
 }
 
 class _SearchViewState extends ConsumerState<SearchView> {
-  Future<QuerySnapshot>? _futureUsers;
+  late Future<QuerySnapshot<UserModel>>? _futureUsers;
   bool foundUser = false;
   @override
   Widget build(BuildContext context) {
@@ -49,28 +50,28 @@ class _SearchViewState extends ConsumerState<SearchView> {
         ),
       ),
       body: foundUser
-          ? FutureBuilder<QuerySnapshot>(
+          ? FutureBuilder<QuerySnapshot<UserModel>>(
               future: _futureUsers,
-              builder: (_, snapshot) {
+              builder: (_, AsyncSnapshot<QuerySnapshot<UserModel>> snapshot) {
                 if (snapshot.hasData) {
                   return ListView.builder(
                     itemCount: snapshot.data!.docs.length,
                     itemBuilder: (_, index) {
+                      var _futureUser = snapshot.data!.docs[index].data();
                       return GestureDetector(
                         onTap: () => NavigationService.instance.navigateToPage(
                           path: "/profile",
-                          data: snapshot.data!.docs[index]['id'],
+                          data: _futureUser.id,
                         ),
                         child: ListTile(
                           leading: CircleAvatar(
                             backgroundImage: NetworkImage(
-                              (snapshot.data! as dynamic).docs[index]
-                                  ['profImage'],
+                              _futureUser.profImage,
                             ),
                             radius: 16,
                           ),
                           title: Text(
-                            (snapshot.data! as dynamic).docs[index]['username'],
+                            _futureUser.username,
                           ),
                         ),
                       );

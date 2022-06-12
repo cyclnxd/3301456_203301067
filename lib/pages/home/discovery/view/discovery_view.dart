@@ -67,11 +67,12 @@ class _DiscoveryViewState extends ConsumerState<DiscoveryView> {
                   return GestureDetector(
                     onTap: () {
                       NavigationService.instance.navigateToPage(
-                        path: '/discovery-posts',
-                        data: [
-                          _posts,
-                          index,
-                        ],
+                        path: '/posts',
+                        data: {
+                          'posts': _posts,
+                          'title': "Discovery",
+                          'index': index,
+                        },
                       );
                     },
                     child: CachedNetworkImage(
