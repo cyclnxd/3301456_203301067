@@ -1,11 +1,13 @@
-import 'dart:developer';
-
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:subsocial/models/chat/chat_model.dart';
+import 'package:subsocial/models/chat/conversation_model.dart';
 import 'package:subsocial/models/post/comment_model.dart';
 import 'package:subsocial/models/post/likes_model.dart';
 import 'package:subsocial/models/post/post_model.dart';
+import 'package:subsocial/models/post/saveds_model.dart';
 import 'package:uuid/uuid.dart';
 
+import '../../../../models/activities/activities_model.dart';
 import '../../../../models/user/user_model.dart';
 
 typedef JsonMap = Map<String, dynamic>;
@@ -15,14 +17,30 @@ abstract class IFireStoreService {
   Future<void> addPost(Post post);
   Future<void> deletePost(String postId);
   Future<void> followUser(String uid, String followId);
-  Future<QuerySnapshot>? fetchUserWithId(String uid);
-  Future<QuerySnapshot>? fetchUserWithUsername(String username);
-  Future<QuerySnapshot>? fetchPosts();
-  Future<QuerySnapshot>? fetchPostWithId(String uid);
-  Future<QuerySnapshot>? fetchSaveds(String uid);
-  Future<QuerySnapshot>? fetchComments(String postId);
-  Future<QuerySnapshot>? fetchLikes(String postId);
-  Future<QuerySnapshot<JsonMap>>? fetchActivities(String uid);
+  Future<QuerySnapshot<UserModel>>? fetchUserWithId(String uid);
+  Future<QuerySnapshot<UserModel>>? fetchUserWithUsername(String username);
+  Future<QuerySnapshot<Post>>? fetchPosts();
+  Future<QuerySnapshot<Post>>? fetchPostWithId(String uid);
+  Future<DocumentSnapshot<Post>>? fetchPostWithUid(String uid);
+  Future<QuerySnapshot<Saveds>>? fetchSaveds(String uid);
+  Future<QuerySnapshot<Comment>>? fetchComments(String postId);
+  Future<QuerySnapshot<Like>>? fetchLikes(String postId);
+  Future<QuerySnapshot<Activities>>? fetchActivities(String uid);
+  Stream<QuerySnapshot<Conversation>>? fetchConversations(String uid);
+  Stream<QuerySnapshot<ChatMessages>>? fetchMessages(
+    String uid,
+    String conversationId,
+  );
+  Future<QueryDocumentSnapshot<Conversation>> createConversation(
+    String senderUid,
+    String receiverUid,
+  );
+  Future<void> sendMessage(
+    String senderUid,
+    String receiverUid,
+    String conversationId,
+    ChatMessages chatMessages,
+  );
 }
 
 class FirestoreService implements IFireStoreService {
@@ -32,6 +50,50 @@ class FirestoreService implements IFireStoreService {
   @override
   Future<void> deletePost(String postId) async {
     await _firebaseFirestore.collection("posts").doc(postId).delete();
+  }
+
+  Future<void> savePost(DocumentReference postRef, String uid) async {
+    final saved = await _firebaseFirestore
+        .collection("users")
+        .doc(uid)
+        .collection("saveds")
+        .where('post', isEqualTo: postRef)
+        .withConverter<Like>(
+          fromFirestore: (snapshot, _) =>
+              Like.fromFirestore(snapshot: snapshot.data()!),
+          toFirestore: (like, _) => like.toJson(),
+        )
+        .get();
+
+    if (saved.docs.isEmpty) {
+      _firebaseFirestore
+          .collection('users')
+          .doc(uid)
+          .collection('saveds')
+          .withConverter<Saveds>(
+            fromFirestore: (snapshot, _) =>
+                Saveds.fromFirestore(snapshot: snapshot.data()!),
+            toFirestore: (saveds, _) => saveds.toJson(),
+          )
+          .add(
+            Saveds(
+              datePublished: Timestamp.now(),
+              post: postRef,
+            ),
+          );
+    } else {
+      _firebaseFirestore
+          .collection('users')
+          .doc(uid)
+          .collection('saveds')
+          .doc(saved.docs.first.id)
+          .withConverter<Saveds>(
+            fromFirestore: (snapshot, _) =>
+                Saveds.fromFirestore(snapshot: snapshot.data()!),
+            toFirestore: (saveds, _) => saveds.toJson(),
+          )
+          .delete();
+    }
   }
 
   Future<void> likePost(DocumentReference postRef, Like like) async {
@@ -192,7 +254,7 @@ class FirestoreService implements IFireStoreService {
   }
 
   @override
-  Future<QuerySnapshot> fetchUserWithId(String uid) async {
+  Future<QuerySnapshot<UserModel>> fetchUserWithId(String uid) async {
     return await _firebaseFirestore
         .collection("users")
         .where("id", isEqualTo: uid)
@@ -205,7 +267,8 @@ class FirestoreService implements IFireStoreService {
   }
 
   @override
-  Future<QuerySnapshot>? fetchUserWithUsername(String username) async {
+  Future<QuerySnapshot<UserModel>>? fetchUserWithUsername(
+      String username) async {
     return await _firebaseFirestore
         .collection('users')
         .where('username', isGreaterThanOrEqualTo: username)
@@ -219,7 +282,7 @@ class FirestoreService implements IFireStoreService {
   }
 
   @override
-  Future<QuerySnapshot>? fetchPosts() async {
+  Future<QuerySnapshot<Post>>? fetchPosts() async {
     return await _firebaseFirestore
         .collection("posts")
         .orderBy("datePublished", descending: true)
@@ -232,7 +295,7 @@ class FirestoreService implements IFireStoreService {
   }
 
   @override
-  Future<QuerySnapshot>? fetchPostWithId(String uid) async {
+  Future<QuerySnapshot<Post>>? fetchPostWithId(String uid) async {
     return await _firebaseFirestore
         .collection("posts")
         .where('uid', isEqualTo: uid)
@@ -245,7 +308,20 @@ class FirestoreService implements IFireStoreService {
   }
 
   @override
-  Future<QuerySnapshot>? fetchComments(String postId) async {
+  Future<DocumentSnapshot<Post>>? fetchPostWithUid(String uid) async {
+    return await _firebaseFirestore
+        .collection("posts")
+        .doc(uid)
+        .withConverter<Post>(
+          fromFirestore: (snapshot, _) =>
+              Post.fromFirestore(snapshot: snapshot.data()!),
+          toFirestore: (post, _) => post.toJson(),
+        )
+        .get();
+  }
+
+  @override
+  Future<QuerySnapshot<Comment>>? fetchComments(String postId) async {
     return await _firebaseFirestore
         .collection('posts')
         .doc(postId)
@@ -260,34 +336,183 @@ class FirestoreService implements IFireStoreService {
   }
 
   @override
-  Future<QuerySnapshot>? fetchLikes(String postId) async {
+  Future<QuerySnapshot<Like>>? fetchLikes(String postId) async {
     return await _firebaseFirestore
         .collection('posts')
         .doc(postId)
         .collection('likes')
-        .withConverter<Comment>(
+        .withConverter<Like>(
           fromFirestore: (snapshot, _) =>
-              Comment.fromFirestore(snapshot: snapshot.data()!),
-          toFirestore: (comment, _) => comment.toJson(),
+              Like.fromFirestore(snapshot: snapshot.data()!),
+          toFirestore: (like, _) => like.toJson(),
         )
         .get();
   }
 
   @override
-  Future<QuerySnapshot<JsonMap>> fetchActivities(String uid) async {
+  Future<QuerySnapshot<Activities>> fetchActivities(String uid) async {
     return await _firebaseFirestore
         .collection('users')
         .doc(uid)
         .collection('activities')
+        .withConverter<Activities>(
+          fromFirestore: (snapshot, _) =>
+              Activities.fromFirestore(snapshot: snapshot.data()!),
+          toFirestore: (activities, _) => activities.toJson(),
+        )
         .get();
   }
 
   @override
-  Future<QuerySnapshot>? fetchSaveds(String uid) async {
-    final _saveds = await _firebaseFirestore
-        .collectionGroup('saveds')
-        .orderBy("datePublished", descending: true)
+  Future<QuerySnapshot<Saveds>>? fetchSaveds(String uid) async {
+    return await _firebaseFirestore
+        .collection('users')
+        .doc(uid)
+        .collection('saveds')
+        .withConverter<Saveds>(
+          fromFirestore: (snapshot, _) =>
+              Saveds.fromFirestore(snapshot: snapshot.data()!),
+          toFirestore: (saveds, _) => saveds.toJson(),
+        )
         .get();
-    return _saveds;
+  }
+
+  @override
+  Future<QueryDocumentSnapshot<Conversation>> createConversation(
+    String senderUid,
+    String receiverUid,
+  ) async {
+    return _firebaseFirestore
+        .collection('users')
+        .doc(senderUid)
+        .collection('conversations')
+        .where('user', isEqualTo: receiverUid)
+        .withConverter<Conversation>(
+          fromFirestore: (snapshot, _) =>
+              Conversation.fromFirestore(snapshot: snapshot.data()!),
+          toFirestore: (conversation, _) => conversation.toJson(),
+        )
+        .get()
+        .then(
+      (value) async {
+        if (value.docs.isNotEmpty) {
+          return value.docs.first;
+        } else {
+          String uuid = const Uuid().v1();
+          await _firebaseFirestore
+              .collection('users')
+              .doc(receiverUid)
+              .collection('conversations')
+              .doc(uuid)
+              .withConverter<Conversation>(
+                fromFirestore: (snapshot, _) =>
+                    Conversation.fromFirestore(snapshot: snapshot.data()!),
+                toFirestore: (conversation, _) => conversation.toJson(),
+              )
+              .set(
+                Conversation(
+                  time: Timestamp.now(),
+                  user: senderUid,
+                ),
+              );
+
+          await _firebaseFirestore
+              .collection('users')
+              .doc(senderUid)
+              .collection('conversations')
+              .doc(uuid)
+              .withConverter<Conversation>(
+                fromFirestore: (snapshot, _) =>
+                    Conversation.fromFirestore(snapshot: snapshot.data()!),
+                toFirestore: (conversation, _) => conversation.toJson(),
+              )
+              .set(
+                Conversation(
+                  time: Timestamp.now(),
+                  user: receiverUid,
+                ),
+              );
+          return _firebaseFirestore
+              .collection('users')
+              .doc(senderUid)
+              .collection('conversations')
+              .where('user', isEqualTo: receiverUid)
+              .withConverter<Conversation>(
+                fromFirestore: (snapshot, _) =>
+                    Conversation.fromFirestore(snapshot: snapshot.data()!),
+                toFirestore: (conversation, _) => conversation.toJson(),
+              )
+              .get()
+              .then((value) => value.docs.first);
+        }
+      },
+    );
+  }
+
+  @override
+  Stream<QuerySnapshot<Conversation>>? fetchConversations(String uid) {
+    return _firebaseFirestore
+        .collection('users')
+        .doc(uid)
+        .collection('conversations')
+        .withConverter<Conversation>(
+          fromFirestore: (snapshot, _) =>
+              Conversation.fromFirestore(snapshot: snapshot.data()!),
+          toFirestore: (conversation, _) => conversation.toJson(),
+        )
+        .snapshots();
+  }
+
+  @override
+  Stream<QuerySnapshot<ChatMessages>>? fetchMessages(
+    String uid,
+    String conversationId,
+  ) {
+    return _firebaseFirestore
+        .collection('users')
+        .doc(uid)
+        .collection('conversations')
+        .doc(conversationId)
+        .collection('messages')
+        .orderBy('time', descending: true)
+        .withConverter<ChatMessages>(
+          fromFirestore: (snapshot, _) =>
+              ChatMessages.fromFirestore(snapshot: snapshot.data()!),
+          toFirestore: (message, _) => message.toJson(),
+        )
+        .snapshots();
+  }
+
+  @override
+  Future<void> sendMessage(
+    String senderUid,
+    String receiverUid,
+    String conversationId,
+    ChatMessages chatMessages,
+  ) async {
+    await _firebaseFirestore
+        .collection('users')
+        .doc(receiverUid)
+        .collection('conversations')
+        .doc(conversationId)
+        .collection('messages')
+        .withConverter<ChatMessages>(
+          fromFirestore: (snapshot, _) =>
+              ChatMessages.fromFirestore(snapshot: snapshot.data()!),
+          toFirestore: (message, _) => message.toJson(),
+        )
+        .add(chatMessages);
+    await _firebaseFirestore
+        .collection('users')
+        .doc(senderUid)
+        .collection('conversations')
+        .doc(conversationId)
+        .collection('messages')
+        .withConverter<ChatMessages>(
+          fromFirestore: (snapshot, _) =>
+              ChatMessages.fromFirestore(snapshot: snapshot.data()!),
+          toFirestore: (message, _) => message.toJson(),
+        )
+        .add(chatMessages);
   }
 }
