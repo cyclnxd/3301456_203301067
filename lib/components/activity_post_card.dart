@@ -310,7 +310,7 @@ class _ActivityPostCardState extends ConsumerState<ActivityPostCard> {
                           onTap: () {
                             NavigationService.instance.navigateToPage(
                               path: '/comments',
-                              data: widget.post.reference.id,
+                              data: widget.post,
                             );
                           },
                           child: Padding(

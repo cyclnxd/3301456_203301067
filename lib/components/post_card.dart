@@ -194,7 +194,7 @@ class _PostCardState extends ConsumerState<PostCard> {
                   children: [
                     IconButton(
                       iconSize: _iconSize,
-                      onPressed: () {
+                      onPressed: () async {
                         setState(() {
                           liked = !liked;
                         });

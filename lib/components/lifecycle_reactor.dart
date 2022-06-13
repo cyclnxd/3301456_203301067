@@ -11,7 +11,7 @@ class AppLifecycleReactor extends StatefulWidget {
 
 class _AppLifecycleReactorState extends State<AppLifecycleReactor>
     with WidgetsBindingObserver {
-  DateTime startTime = DateTime(0);
+  DateTime startTime = DateTime.now();
 
   @override
   void initState() {
