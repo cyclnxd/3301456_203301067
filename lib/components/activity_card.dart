@@ -79,7 +79,7 @@ class _ActivityCardState extends ConsumerState<ActivityCard> {
                       onTap: () {
                         NavigationService.instance.navigateToPage(
                           path: "/profile",
-                          data: _post.uid,
+                          data: _user.id,
                         );
                       },
                       child: CircleAvatar(
