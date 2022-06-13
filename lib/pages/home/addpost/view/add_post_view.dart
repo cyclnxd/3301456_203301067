@@ -199,10 +199,7 @@ class AddPostView extends HookConsumerWidget {
                         User? user =
                             ref.read(authServicesProvider).getCurrentUser;
                         ref.watch(isLoadingProvider.notifier).changeIsLoading();
-                        var _locationName =
-                            _locationController.text.split(',')[1];
-                        var _locationPos =
-                            _locationController.text.split(',').last;
+
                         final resp =
                             await ref.read(storageServicesProvider).uploadImage(
                                   path: "posts",
@@ -210,19 +207,40 @@ class AddPostView extends HookConsumerWidget {
                                   uid: user!.uid,
                                   file: File(_croppedFile.value!.path),
                                 );
-                        await ref.read(firestoreServicesProvider).addPost(
-                              Post(
-                                description: _caption.text,
-                                uid: user.uid,
-                                postId: _uuid,
-                                likes: 0,
-                                datePublished: Timestamp.now(),
-                                username: user.displayName!,
-                                postUrl: resp,
-                                profImage: user.photoURL!,
-                                location: '$_locationName, $_locationPos',
-                              ),
-                            );
+                        if (_locationController.text.isNotEmpty) {
+                          var _locationName =
+                              _locationController.text.split(',')[1];
+                          var _locationPos =
+                              _locationController.text.split(',').last;
+                          await ref.read(firestoreServicesProvider).addPost(
+                                Post(
+                                  description: _caption.text,
+                                  uid: user.uid,
+                                  postId: _uuid,
+                                  likes: 0,
+                                  datePublished: Timestamp.now(),
+                                  username: user.displayName!,
+                                  postUrl: resp,
+                                  profImage: user.photoURL!,
+                                  location: '$_locationName, $_locationPos',
+                                ),
+                              );
+                        } else {
+                          await ref.read(firestoreServicesProvider).addPost(
+                                Post(
+                                  description: _caption.text,
+                                  uid: user.uid,
+                                  postId: _uuid,
+                                  likes: 0,
+                                  datePublished: Timestamp.now(),
+                                  username: user.displayName!,
+                                  postUrl: resp,
+                                  profImage: user.photoURL!,
+                                  location: '',
+                                ),
+                              );
+                        }
+
                         NavigationService.instance
                             .navigateToPageClear(path: "/home");
                       } finally {

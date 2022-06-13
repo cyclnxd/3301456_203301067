@@ -6,6 +6,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:subsocial/constants/placeholder.dart';
 import 'package:subsocial/extensions/image_path.dart';
 import 'package:subsocial/utils/utils.dart';
 import 'package:uuid/uuid.dart';
@@ -186,7 +187,7 @@ class _EditProfileViewState extends ConsumerState<EditProfileView> {
                       File(_imgFile!.path),
                     )
                   : Image.network(
-                      user?.photoURL ?? "ph_profile.jpg".phPath(),
+                      user?.photoURL ?? ProjectPlaceholder.databasePhProfImage,
                     ),
               Positioned(
                 child: Text(

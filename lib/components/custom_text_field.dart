@@ -44,14 +44,17 @@ class CustomTextFormFieldState extends State<CustomTextFormField> {
       obscureText: widget.obscureText && !_isVisibility,
       controller: widget.controller,
       validator: (value) {
-        if (value == null || value.isEmpty) {
+        if (!(widget.inputType == TextInputType.text) &&
+            (value == null || value.isEmpty)) {
           return widget.invalidText;
         } else if (widget.inputType == TextInputType.emailAddress &&
-            !EmailValidator.validate(value)) {
+            !EmailValidator.validate(value!)) {
           return "Invalid email adress";
         } else if (widget.inputType == TextInputType.visiblePassword &&
-            value.length < 6) {
+            value!.length < 6) {
           return "Password length must be longer than 6 characters";
+        } else if (widget.inputType == TextInputType.text) {
+          return null;
         }
         return null;
       },

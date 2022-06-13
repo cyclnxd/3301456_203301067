@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:subsocial/constants/placeholder.dart';
 import 'package:subsocial/extensions/image_path.dart';
 import 'package:uuid/uuid.dart';
 
@@ -191,7 +192,6 @@ class _AccountInfoViewState extends ConsumerState<AccountInfoView> {
                       postId: const Uuid().v1(),
                       file: File(image.path),
                     );
-
                     UserModel tempUser = UserModel(
                       id: _user.uid,
                       username: _usernameController.text,
@@ -209,10 +209,22 @@ class _AccountInfoViewState extends ConsumerState<AccountInfoView> {
                       path: '/home',
                     );
                   } else {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text("Select photo"),
-                      ),
+                    UserModel tempUser = UserModel(
+                      id: _user!.uid,
+                      username: _usernameController.text,
+                      name: _nameController.text,
+                      surname: _surnameController.text,
+                      profImage: ProjectPlaceholder.databasePhProfImage,
+                      bio: _bioController.text,
+                      followers: [""],
+                      following: [""],
+                    );
+                    _user
+                        .updatePhotoURL(ProjectPlaceholder.databasePhProfImage);
+                    _user.updateDisplayName(_usernameController.text);
+                    _firestoreState.addUser(tempUser);
+                    NavigationService.instance.navigateToPageClear(
+                      path: '/home',
                     );
                   }
                 } catch (e) {
